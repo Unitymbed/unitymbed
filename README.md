@@ -21,7 +21,7 @@ Write bare-metal firmware in plain language. Build, flash, debug, and inspect ha
 UnityMbed wraps ARM GCC, OpenOCD, and a large-language model into one workflow. It is the only tool today with a working OpenOCD flash driver for **Nations N32G031** — written from scratch after reverse-engineering the vendor's flash controller.
 
 ### Key highlights
-- 🤖 **AI-native** — Gemini or local Ollama; prompts in Thai or English
+- 🤖 **AI-native** — UnityMbed AI Cloud or local Ollama; prompts in Thai or English
 - ⚡ **Bare-metal only** — no HAL, no StdPeriph. Direct MMIO writes, 196 byte blink on N32G031
 - 🔧 **End-to-end** — `init → build → flash → check → debug → monitor` in one CLI
 - 🔬 **AI inspection** — `/agent "LED ไม่ติด"` reads real hardware registers, diagnoses root cause
@@ -91,20 +91,19 @@ UnityMbed will:
 
 ### AI models
 
-| Tier | AI | Where it runs | Privacy |
-|------|----|---|---|
-| **Local** | Ollama (default) | Your laptop | Air-gapped |
-| **Cloud** | Google Gemini 2.5 Flash | Google | API key in `~/.unitymbed/config.yaml` |
-| **Cloud Pro** | Anthropic Claude (coming back) | Anthropic | Premium reasoning |
+| Tier | Where it runs | Privacy | Cost |
+|------|---------------|---------|------|
+| **Unitymbed AI Local** (Ollama) | Your laptop | 🔒 Air-gapped | Free forever |
+| **Unitymbed AI Cloud** | UnityMbed backend | ☁️ Prompts transit our servers | Included with paid plans |
+
+Cloud AI is proxied through UnityMbed — there is **no bring-your-own-key**. Buy a plan, get Cloud AI. Ollama is always free.
 
 Switch with `~/.unitymbed/config.yaml`:
 ```yaml
 ai:
-  provider: gemini        # ollama | claude | gemini
-  model: gemini-2.5-flash
-  keys:
-    gemini: AIza...
-    claude: sk-ant-...
+  provider: cloud          # ollama | cloud
+  cloudAllowed: true       # set to false for air-gap mode (forces Ollama)
+  ollamaHost: http://127.0.0.1:11434
 ```
 
 Full guide: [docs/ai.md](docs/ai.md).
@@ -144,7 +143,7 @@ Full docs with examples: [docs/commands.md](docs/commands.md).
 **UnityMbed** คือเครื่องมือสำหรับเขียน firmware ระดับ bare-metal บนชิป ARM Cortex โดยสั่งด้วยภาษาธรรมชาติ (ไทย/อังกฤษ) — เน้นชิป **Nations N32** series
 
 ### จุดเด่น
-- 🤖 **AI ในตัว** — ใช้ Gemini บน cloud หรือ Ollama ในเครื่อง
+- 🤖 **AI ในตัว** — UnityMbed AI Cloud (ผ่าน backend ของเรา) หรือ Ollama ในเครื่อง
 - ⚡ **Bare-metal อย่างเดียว** — ไม่ใช้ HAL/StdPeriph. เขียน register ตรงๆ ไฟล์เล็กกว่า 200 byte ก็ blink ได้
 - 🔧 **End-to-end** — `init → build → flash → check → debug → monitor` ใน CLI เดียว
 - 🔬 **AI ตรวจ hardware** — พิมพ์ `/agent "LED ไม่ติด"` → อ่าน register จริง → วินิจฉัยสาเหตุ

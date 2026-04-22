@@ -12,7 +12,7 @@
 | **Advance** | **฿1,200** / $34 | 8,000 | 3 | Teams, intensive AI usage |
 | **Enterprise** | Contact | Unlimited | 50+ | Large org, private lib, SLA |
 
-- **Cloud AI** = Gemini-powered requests
+- **Cloud AI** = requests served by UnityMbed AI Cloud
 - **Seats** = number of machines you can activate the license on
 - All plans use **Ollama free** for local AI (unlimited, private)
 
@@ -20,7 +20,7 @@
 
 ## What counts as "1 Cloud request"?
 
-Each prompt you send in the TUI that reaches Cloud AI (Gemini) = 1 request.  
+Each prompt you send in the TUI that reaches UnityMbed AI Cloud = 1 request.  
 Internal helpers don't count:
 - `/check` AI analysis = 1 request
 - `/agent` command = 1-2 requests
@@ -62,7 +62,7 @@ unitymbed credits buy cloud_500
 | Data | Where it lives | Encrypted? |
 |------|---------------|-----------|
 | License key + email | Firestore (Google Cloud) | ✅ at rest |
-| AI prompts (Cloud) | Sent to Google Gemini | Over TLS, not stored by us |
+| AI prompts (Cloud) | Sent to UnityMbed AI Cloud | Over TLS, not retained after response |
 | AI prompts (Local/Ollama) | Your machine only | Never leaves |
 | Source code | Your disk | Not uploaded unless you `/push` |
 | Project `CONTEXT.md` | Your disk | Not uploaded unless you `/push` |
@@ -86,7 +86,10 @@ For company invoices (VAT/Tax ID): email support@unitymbed.com after first purch
 **Yes.** Ollama is unlimited + free. Or use the Free tier for 20 Cloud requests/month.
 
 ### เลี่ยงค่าใช้จ่าย cloud ได้ไหม? / Can I avoid cloud costs?
-**Yes.** Set `provider: ollama` in config → never touches cloud. Or bring your own Gemini API key (`keys.gemini`) — pay Google directly, we take 0%.
+**Yes.** Set `provider: ollama` in config → Unitymbed AI Local runs on your laptop, free forever, never touches the network.
+
+### ใช้ API key ของตัวเองได้ไหม? / Can I use my own API key (BYOK)?
+**No.** Cloud AI is proxied through UnityMbed only — we hold the provider key, enforce quota, and bundle it into the plan price. If you want to avoid cloud entirely, use Ollama.
 
 ### Cancel ได้ตอนไหน? / When can I cancel?
 Anytime. You keep access until end of paid period. No refunds for partial months.

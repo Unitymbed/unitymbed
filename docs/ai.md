@@ -1,6 +1,6 @@
 # AI setup — Cloud & Local
 
-UnityMbed supports 3 AI backends. Pick based on privacy / speed / cost.
+UnityMbed ships with two AI backends. Pick based on privacy, speed, and budget.
 
 ---
 
@@ -8,13 +8,18 @@ UnityMbed supports 3 AI backends. Pick based on privacy / speed / cost.
 
 | Backend | Speed | Quality | Privacy | Cost |
 |---------|-------|---------|---------|------|
-| **Ollama** (local) | ⚡⚡ | ⭐⭐⭐ | 🔒 100% local | Free |
-| **Gemini** (cloud) | ⚡⚡⚡ | ⭐⭐⭐⭐ | ☁️ Google | Monthly plan or BYOK |
-| **Claude** (cloud pro) | ⚡⚡ | ⭐⭐⭐⭐⭐ | ☁️ Anthropic | Premium tier or BYOK |
+| **Unitymbed AI Local** (Ollama) | ⚡⚡ | ⭐⭐⭐ | 🔒 100% on your laptop | Free forever |
+| **Unitymbed AI Cloud** | ⚡⚡⚡ | ⭐⭐⭐⭐ | ☁️ Through UnityMbed backend | Included with paid plans |
+
+> **No bring-your-own-key.** Cloud AI traffic is proxied through UnityMbed —
+> we hold the provider key, enforce quota, and handle billing. If you want
+> air-gapped operation, use Ollama.
 
 ---
 
-## Option 1: Ollama — local, free, private
+## Option 1: Unitymbed AI Local (Ollama) — free, private
+
+Runs the model on your own machine. No license required. Never contacts the network.
 
 ### Install
 
@@ -44,132 +49,129 @@ ai:
   provider: ollama
   model: qwen2.5-coder:7b
   ollamaHost: http://127.0.0.1:11434
-  cloudAllowed: false
+  cloudAllowed: false          # hard-disables all cloud paths
 ```
 
 ### Pros & cons
 
-✅ Free forever, no internet, no account  
-✅ Code never leaves your machine  
-❌ Slower (10-30s/response on M1 Mac)  
-❌ Smaller models = lower accuracy vs cloud  
-❌ Needs 8GB+ RAM
+✅ Free forever, no internet, no account
+✅ Code never leaves your machine
+❌ Slower (10–30s / response on M1 Mac)
+❌ Smaller models = lower accuracy vs Cloud
+❌ Needs 8 GB+ RAM
 
 ---
 
-## Option 2: Gemini — cloud, best balance
+## Option 2: Unitymbed AI Cloud — best quality, included with paid plans
 
-### Get API key
+Traffic goes to UnityMbed's `aiProxy` endpoint which validates your license, enforces quota, and forwards to our backing model using our key.
 
-1. Go to https://aistudio.google.com/app/apikey
-2. Click **Create API key**
-3. Copy `AIza...` string
+### Requirements
+
+- An active UnityMbed license (any paid tier, or a Freemium signup which
+  includes **20 Cloud AI requests / month**).
+- Your license key activated on this machine:
+  ```bash
+  unitymbed activate UM-XXXX-XXXX-XXXX-XXXX-XXXX
+  ```
 
 ### Configure
 
 ```yaml
 ai:
-  provider: gemini
-  model: gemini-2.5-flash        # or gemini-2.5-pro for harder tasks
-  keys:
-    gemini: AIza...               # your key
+  provider: cloud
   cloudAllowed: true
-  fallback: ollama                # fallback if cloud fails
+  fallback: ollama        # optional: fall back to local if Cloud is unreachable
 ```
 
-### Google's free tier (BYOK)
+That's it. **Do not** put an API key in this file — Cloud AI is not BYOK.
 
-If you use your own key:
-- **gemini-2.5-flash**: 500 req/day free
-- **gemini-2.5-pro**: 50 req/day free
+### Quota
 
-That's 15,000 req/month free — more than our Advance plan — but requires you to manage the Google account yourself.
+Check your monthly usage any time:
+```bash
+unitymbed usage
+```
+
+Need more? Upgrade your plan or buy pay-as-you-go credits:
+```bash
+unitymbed credits buy cloud_100
+```
+
+See [pricing.md](pricing.md) for current caps.
 
 ### Pros & cons
 
-✅ Fast (2-5s/response)  
-✅ Best for structured code generation  
-✅ Free tier via AI Studio (if BYOK)  
-❌ Requires internet  
-❌ Prompts visible to Google (not stored, but in transit)
+✅ Fastest (2–5 s / response)
+✅ Highest quality on embedded-specific tasks
+✅ No API key or billing setup — one purchase covers everything
+❌ Requires internet
+❌ Prompts transit UnityMbed servers (not stored long-term; see privacy note below)
 
 ---
 
-## Option 3: Claude — premium reasoning
+## Hybrid setup (recommended)
 
-**Note:** Cloud Pro (Claude) is temporarily disabled system-wide. Coming back soon.
-
-### Get API key
-
-1. Go to https://console.anthropic.com/settings/keys
-2. Add billing credit ($5 min)
-3. Create key → `sk-ant-...`
-
-### Configure
+Default to Cloud for hard problems, but fall back to Ollama if offline:
 
 ```yaml
 ai:
-  provider: claude
-  model: claude-sonnet-4-6
-  keys:
-    claude: sk-ant-...
+  provider: cloud
   cloudAllowed: true
   fallback: ollama
+ollamaHost: http://127.0.0.1:11434
 ```
 
-### Pros & cons
-
-✅ Best at multi-step debugging  
-✅ Long-context understanding of codebase  
-❌ Most expensive (~$3/M input tokens, $15/M output)  
-❌ Slower than Gemini
+Switch manually any time by editing `~/.unitymbed/config.yaml` and restarting `unitymbed`.
 
 ---
 
-## Hybrid setup (recommended for power users)
+## Airgap mode
 
-Mix and match — use Ollama for quick edits, Gemini for generation, Claude for hard bugs:
-
-```yaml
-ai:
-  provider: gemini                # default for TUI prompts
-  model: gemini-2.5-flash
-  keys:
-    gemini: AIza...
-    claude: sk-ant-...
-  cloudAllowed: true
-  fallback: ollama                # auto-fallback if Gemini fails
-```
-
-Switch provider on the fly by editing `~/.unitymbed/config.yaml` and restarting `unitymbed`.
-
----
-
-## Privacy toggle — airgap mode
-
-If you never want code to leave your machine:
+Never want anything to leave your machine?
 
 ```yaml
 ai:
   provider: ollama
-  cloudAllowed: false       # hard-disables all cloud paths
+  cloudAllowed: false
 ```
 
 With `cloudAllowed: false`:
-- Even if `provider: gemini`, calls are blocked
-- `/push`, `/pull` still work only if you explicitly set `cloud.enabled: true`
-- License check happens once per week via Firestore — you can skip it by setting `cloud.enabled: false` (but renewals won't auto-refresh)
+- Any `provider: cloud` call is blocked before hitting the network.
+- `unitymbed push`, `unitymbed pull` still work only if `cloud.enabled: true`.
+- License check still runs weekly (to refresh expiry). Disable with `cloud.enabled: false` if you want a fully offline box — but auto-renewals won't propagate.
 
 ---
 
-## Current system prompt
+## Privacy — what leaves your machine when you use Cloud AI
 
-UnityMbed embeds a **bare-metal N32G031 reference card** in every prompt. AI knows:
+When `provider: cloud`, each request sends to UnityMbed:
+
+- Your license key + machine ID (for quota)
+- The prompt you typed
+- The current project context (CONTEXT.md, open files snippets, conversation history for that project)
+
+UnityMbed forwards the prompt to the backing model and streams the response back. We do not retain prompt bodies after the request completes. License/quota metadata is retained for billing.
+
+If that's not acceptable for your codebase → use Ollama.
+
+---
+
+## Embedded system prompt
+
+Every request (Local or Cloud) carries a built-in bare-metal N32G031 reference card so the model knows:
+
 - Register map (RCC, GPIO, USART, Flash controller)
-- Correct clock bits (APB2PCLKEN for GPIO, not AHB)
-- Common pins (UART1 = PA9/PA10, etc.)
+- Correct clock bits (APB2PCLKEN for GPIO — **not** AHBPCLKEN)
+- Default pin mappings (UART1 = PA9/PA10, etc.)
 - Flash programming sequence
 
-This is why prompts like "blink LED at PB7" produce correct code on the first try, regardless of AI model.
+This is why prompts like "blink LED at PB7" produce correct code on the first try.
 
-Full datasheet reference: [Unitymbed/datasheets](https://github.com/Unitymbed/datasheets)
+Full register reference: [Unitymbed/datasheets](https://github.com/Unitymbed/datasheets)
+
+---
+
+## Coming later
+
+A premium **Unitymbed AI Cloud Pro** tier (built on a stronger reasoning model for multi-step debugging) is on the roadmap but disabled today. When it ships you won't need to change configuration — just upgrade your plan.

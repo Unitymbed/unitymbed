@@ -257,13 +257,9 @@ Location: `~/.unitymbed/config.yaml`
 
 ```yaml
 ai:
-  provider: gemini          # ollama | claude | gemini
-  model: gemini-2.5-flash
-  keys:
-    gemini: AIza...         # from https://aistudio.google.com/app/apikey
-    claude: sk-ant-...      # from https://console.anthropic.com
-  cloudAllowed: true
-  fallback: ollama          # if cloud fails
+  provider: cloud           # ollama | cloud
+  cloudAllowed: true        # false = airgap mode, forces ollama
+  fallback: ollama          # if cloud unreachable
   ollamaHost: http://127.0.0.1:11434
 
 cloud:
@@ -283,6 +279,6 @@ license:
 ## See also
 
 - [Tutorial](tutorial.md) — 10-minute BME280 sensor walkthrough
-- [AI setup](ai.md) — Gemini vs Ollama in detail
+- [AI setup](ai.md) — Cloud vs Ollama in detail
 - [Pricing](pricing.md) — quotas, credits, enterprise
 - [Install](install.md) — toolchain setup per OS
