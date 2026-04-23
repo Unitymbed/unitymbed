@@ -110,15 +110,17 @@ Full guide: [docs/ai.md](docs/ai.md).
 
 ### Pricing
 
-| Plan | Monthly | Cloud AI/mo | Seats |
-|------|---------|-------------|-------|
-| **Free** | ฿0 | 20 | 1 |
-| **Start** | ฿249 | 200 | 1 |
-| **Pro** | ฿499 | 1,500 | 1 |
-| **Advance** | ฿1,200 | 8,000 | 3 |
-| **Enterprise** | contact | unlimited | 50+ |
+| Plan | Monthly | Credits/mo *(1 credit ≈ 1k tokens ≈ 1 typical query)* | Buy |
+|------|---------|------|-----|
+| **Free** | ฿0 | 200 | `unitymbed signup <email>` |
+| **Start** | ฿249 | 2,000 | [buy.stripe.com/cNi14gf5Ebn93tE2vOew801](https://buy.stripe.com/cNi14gf5Ebn93tE2vOew801) |
+| **Pro** | ฿499 | 10,000 | [buy.stripe.com/6oU9AM5v43UH9S29Ygew802](https://buy.stripe.com/6oU9AM5v43UH9S29Ygew802) |
+| **Advance** | ฿1,200 | 50,000 | [buy.stripe.com/9B614gaPo3UH5BM1rKew803](https://buy.stripe.com/9B614gaPo3UH5BM1rKew803) |
+| **Enterprise** | contact | unlimited | support@unitymbed.com |
 
-Ollama usage is always free (local). Pay-as-you-go credits: [docs/pricing.md](docs/pricing.md).
+**Payment Links auto-activate** — after paying, you're redirected to a welcome page with your license key + a one-line install command.
+
+Ollama usage is always free (local). Pay-as-you-go credit packs: [docs/pricing.md](docs/pricing.md).
 
 ### Command reference
 
