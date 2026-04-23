@@ -10,7 +10,7 @@ Write bare-metal firmware in plain language. Build, flash, debug, and inspect ha
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE.md)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)]()
 
-[Install](#install--ติดตั้ง) · [Quick start](#quick-start--เริ่มต้น) · [Commands](docs/commands.md) · [Pricing](docs/pricing.md) · [ภาษาไทย](#ภาษาไทย-1)
+[Install](#install--ติดตั้ง) · [Quick start](#quick-start--เริ่มต้น) · [Commands](docs/commands.md) · [Pricing](docs/pricing.md) · [Revision history](REVISION.md) · [ภาษาไทย](#ภาษาไทย-1)
 
 </div>
 
