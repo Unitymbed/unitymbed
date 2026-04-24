@@ -3,26 +3,27 @@
 AI firmware assistant for ARM Cortex MCUs (Nations N32 series).
 Full-stack: CLI + Firebase backend + admin web app + managed knowledge base.
 
-> This document chronicles every public release from `v0.1.0` to `v0.3.2`.
+> This document chronicles every public release from `v0.1.0` to `v0.5.4`.
 
 ---
 
-## Project scale snapshot (v0.3.2, 2026-04-23)
+## Project scale snapshot (v0.5.4, 2026-04-25)
 
 | Metric | Value |
 |---|---|
-| **Public releases** | 21 (`v0.1.0` → `v0.3.2`) |
-| **Total source LOC** | 5,593 (TypeScript/TSX) |
-| &nbsp;&nbsp;`apps/cli/src` | 2,972 lines (46 files) |
-| &nbsp;&nbsp;`apps/functions/src` | 1,554 lines (18 files) |
-| &nbsp;&nbsp;`apps/functions/scripts` | 334 lines (4 files) |
-| &nbsp;&nbsp;`apps/admin/src` | 733 lines (10 files) |
-| **Cloud Functions deployed** | 19 |
+| **Public releases** | 27 (`v0.1.0` → `v0.5.4`) |
+| **Total source LOC** | 7,497 (TypeScript/TSX) |
+| &nbsp;&nbsp;`apps/cli/src` | 3,957 lines (49 files) |
+| &nbsp;&nbsp;`apps/functions/src` | 1,875 lines (21 files) |
+| &nbsp;&nbsp;`apps/functions/scripts` | 440 lines (5 files) |
+| &nbsp;&nbsp;`apps/admin/src` | 1,225 lines (12 files) |
+| **Cloud Functions deployed** | 23 |
 | **Firebase Hosting sites** | 1 (`unitymbed-admin.web.app`) |
-| **Knowledge base chunks** | 2,341 (N32G031: DS + UM + Nations SDK) |
+| **Knowledge base chunks** | 7,027 (N32G031 + N32G452 + N32G455) |
+| **Stripe Payment Links** | 3 (Start / Pro / Advance, Live) |
 | **Supported platforms** | macOS arm64/x64, Linux x64, Windows x64 |
 | **Distribution** | Homebrew tap + GitHub releases |
-| **Estimated build time** | ~45–60 hours over ~3 days of focused work |
+| **Estimated build time** | ~75–90 hours over ~4 days of focused work |
 
 ---
 
@@ -31,321 +32,401 @@ Full-stack: CLI + Firebase backend + admin web app + managed knowledge base.
 ```
 ┌──────────────────────┐      ┌──────────────────────────────────┐
 │ Customer CLI (brew)  │      │  Admin Web GUI                   │
-│ unitymbed v0.3.2     │      │  https://unitymbed-admin.web.app │
-│  • TUI chat          │      │  • Google login + allowlist      │
-│  • init/build/flash  │      │  • KB CRUD + upload              │
-│  • /agent /check     │      │  • Test query (RAG debug)        │
-│  • license+quota     │      │  • Admin management              │
-└──────────┬───────────┘      └──────────────┬───────────────────┘
-           │                                 │
-           │  SSE                            │  signed URLs + Bearer JWT
+│ unitymbed v0.5.4     │      │  https://unitymbed-admin.web.app │
+│  • TUI chat + panel  │      │   /docs   /upload  /test         │
+│  • /plan /apply      │      │   /billing /admins               │
+│  • /undo /history    │      │   /welcome (public, post-pay)    │
+│  • build/flash/debug │      └──────────────┬───────────────────┘
+│  • token metering    │                     │
+└──────────┬───────────┘                     │
+           │  SSE (credits-based)            │ Firebase ID token
            ▼                                 ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │ Firebase (enterpriseunitymbed)                                   │
-│ ┌──────────────┐ ┌─────────────┐ ┌──────────────┐ ┌───────────┐ │
-│ │ aiProxy      │ │ kbProcess   │ │ adminList    │ │ kbList    │ │
-│ │  +RAG inline │ │ (Storage    │ │ adminAdd     │ │ kbDelete  │ │
-│ │  Gemini-side │ │  trigger)   │ │ adminRemove  │ │ kbTestQ.  │ │
-│ │  identity    │ │             │ │              │ │ kbUpload  │ │
-│ └──────────────┘ └─────────────┘ └──────────────┘ └───────────┘ │
+│ ┌────────────┐ ┌─────────────┐ ┌──────────────┐ ┌──────────────┐│
+│ │ aiProxy    │ │ kbProcess   │ │ KB admin     │ │ billing      ││
+│ │  +RAG      │ │ (Storage    │ │  List/Delete │ │  Get/Set     ││
+│ │  +token    │ │  trigger,   │ │  TestQuery   │ │  Stats       ││
+│ │   meter    │ │  asia-se1)  │ │  UploadUrl   │ │              ││
+│ └────────────┘ └─────────────┘ └──────────────┘ └──────────────┘│
+│ ┌────────────┐ ┌─────────────┐ ┌──────────────┐ ┌──────────────┐│
+│ │ Stripe     │ │ onboard     │ │ admin ACL    │ │ license mgmt ││
+│ │  webhook   │ │  Status     │ │  List/Add/   │ │ (active,     ││
+│ │ (+credits  │ │  (public,   │ │   Remove     │ │  quota,      ││
+│ │  +renew)   │ │   post-pay) │ │              │ │  checkQuota) ││
+│ └────────────┘ └─────────────┘ └──────────────┘ └──────────────┘│
 │ ┌──────────────────────────────────────────────────────────────┐ │
 │ │ Firestore                                                    │ │
-│ │  licenses/ • customers/ • admins/ • kb_docs/ • kb_chunks/    │ │
-│ │              (vector-indexed 768-dim COSINE)                 │ │
+│ │  licenses/  customers/  admins/  kb_docs/  kb_chunks/        │ │
+│ │  billing/config  (tier quotas + packs, admin-editable)       │ │
+│ │              (vector index: COSINE flat, 768 dim)            │ │
 │ └──────────────────────────────────────────────────────────────┘ │
 │ ┌───────────────┐ ┌──────────────┐ ┌──────────────────────────┐ │
-│ │ Stripe        │ │ Resend       │ │ Secret Manager           │ │
-│ │ webhook       │ │ email        │ │  GEMINI / STRIPE / RESEND│ │
+│ │ Stripe (Live) │ │ Resend       │ │ Secret Manager           │ │
+│ │ 3 products    │ │ email        │ │  GEMINI / STRIPE / RESEND│ │
+│ │ 3 Payment     │ │              │ │                          │ │
+│ │ Links         │ │              │ │                          │ │
 │ └───────────────┘ └──────────────┘ └──────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Cloud Functions inventory (19)
+## Cloud Functions inventory (23)
 
 | Function | Purpose |
 |---|---|
 | `onUserCreate` | Firebase Auth trigger — provision customer doc |
 | `activateLicense` | Bind a license key to a machine ID |
 | `checkLicense` | Periodic refresh from CLI |
-| `checkQuota` | Pre-flight quota check (legacy; retained) |
-| `getUsage` | Usage summary for CLI `/usage` |
+| `checkQuota` | License validity check (aiProxy does real enforcement) |
+| `getUsage` | Usage summary — credits, tokens, requests per period |
 | `createFreeLicense` | `unitymbed signup` backend |
-| `stripeWebhook` | Stripe subscription lifecycle + renewal + credit purchase emails |
-| `buyCredits` | Pay-as-you-go credit Checkout |
+| `stripeWebhook` | Subscription lifecycle + renewal + credit purchase + emails |
+| `buyCredits` | Stripe Checkout for credit packs (reads pack catalog from config) |
+| `onboardStatus` | **public** — post-Payment-Link polling by session ID |
 | `syncUpload` / `syncDownload` | Project cloud backup |
-| `aiProxy` | **Core AI path** — SSE, license+quota+identity, RAG injection, Gemini proxy |
+| `aiProxy` | **Core AI path** — SSE, license+quota+identity+RAG, Gemini proxy, token meter |
 | `adminList` / `adminAdd` / `adminRemove` | Admin allowlist management |
 | `kbList` / `kbDelete` / `kbTestQuery` / `kbUploadUrl` | KB admin API |
-| `kbProcess` | **Storage trigger** (asia-southeast1) — parse PDF → chunk → embed → write |
+| `kbProcess` | **Storage trigger** (`asia-southeast1`) — parse PDF → chunk → embed → write |
+| `configGet` / `configSet` / `configStats` | Billing config admin API (live pricing edits) |
 
 ---
 
 # Version-by-version history
 
-All dates in UTC. Every release is tagged on `Unitymbed/homebrew-tap` with pre-built binaries for macOS (arm64 + x64), Linux x64, and Windows x64.
+All dates in UTC. Every release is tagged on `Unitymbed/homebrew-tap` with
+pre-built binaries for macOS (arm64 + x64), Linux x64, and Windows x64.
 
 ---
 
 ## `v0.1.0` — 2026-04-21  *Initial public release*
-
-First public build. Distributed via Homebrew tap `Unitymbed/tap`.
-
-Baseline capabilities:
-- Cross-platform binary (`bun --compile`) for macOS / Linux / Windows
-- Ink + React TUI with streaming AI responses
-- Three AI backends: Ollama (local), Google Gemini (cloud), Anthropic Claude (cloud pro) — all BYOK at this stage
-- Project scaffolding: `unitymbed init <name> --mcu n32g031`
-- ARM GCC build pipeline, initial OpenOCD config iterations
-- YAML config at `~/.unitymbed/config.yaml`
-
-Install: `brew tap Unitymbed/tap && brew install unitymbed`
-
----
+First Homebrew-distributed build. Three BYOK AI backends: Ollama, Gemini, Claude.
+TUI with streaming, `unitymbed init` scaffolding, ARM GCC + OpenOCD pipeline.
 
 ## `v0.1.1` — 2026-04-21  *Brand labels*
-
-- Rebrand AI provider display name to **Unitymbed AI Cloud / Local** in the status bar
-- Begin insulating users from the underlying model name
-
----
+Status bar renames to "Unitymbed AI Cloud / Local".
 
 ## `v0.1.2` — 2026-04-21  *Tier naming*
-
-Locks the three-tier brand that persists into v0.3.x:
-- **Claude → Unitymbed AI Cloud Pro**
-- **Gemini → Unitymbed AI Cloud**
-- **Ollama → Unitymbed AI Local**
-
----
+- Claude → **Unitymbed AI Cloud Pro**
+- Gemini → **Unitymbed AI Cloud**
+- Ollama → **Unitymbed AI Local**
 
 ## `v0.1.3` — 2026-04-21  *Usage quota + `unitymbed usage`*
-
-First billing scaffolding.
-- Per-tier monthly quota tracking (Free / Start / Pro / Advance)
-- New command: `unitymbed usage` shows remaining cloud / cloudPro requests this month
-- Pay-as-you-go credit field prepared in Firestore (not yet purchasable)
-
----
+Per-tier monthly caps (Free / Start / Pro / Advance), first version of the quota panel.
 
 ## `v0.1.4` — 2026-04-21  *Credits + Stripe Checkout*
-
-- `unitymbed credits list` / `unitymbed credits buy <pack>` via Stripe Checkout
-- Two credit packs: `cloud_100`, `cloudPro_100`
-- Multi-key config support (`keys.gemini` + `keys.claude` in the same YAML file)
-
----
+`unitymbed credits list / buy` with `cloud_100`, `cloudPro_100` packs.
 
 ## `v0.1.5` — 2026-04-21  *License renewal + auto-refresh*
+Webhook handles `invoice.paid` (extend 31d) and `customer.subscription.deleted`.
 
-Closes the subscription lifecycle:
-- Auto-refresh license on disk when local expiry nears (transparent to the user)
-- Stripe `invoice.paid` webhook extends expiry by 31 days
-- `customer.subscription.deleted` marks the license as `willNotRenew`
+## `v0.1.6` — 2026-04-21  *Quota rebalance, Cloud Pro paused*
+Start 200 / Pro 1,500 / Advance 8,000 req/mo. Claude tier disabled.
 
----
-
-## `v0.1.6` — 2026-04-21  *Quota rebalance; Cloud Pro off*
-
-- Claude tier (Cloud Pro) temporarily disabled system-wide — reduces support surface while core paths stabilize
-- Increased Cloud quota caps for paid tiers:
-  - Start 200 → Pro 1,500 → Advance 8,000 requests / month
-
----
-
-## `v0.1.7` — 2026-04-21  *Single-provider cloud*
-
-- All tiers route to Gemini (`Unitymbed AI Cloud`)
-- Explicit messaging so users stop expecting Claude
-
----
+## `v0.1.7` — 2026-04-21  *Single-provider Cloud*
+All tiers route to Gemini.
 
 ## `v0.1.8` — 2026-04-21  *Free signup flow*
-
-- New command: `unitymbed signup <email>` → zero-payment license (20 Cloud requests / month)
-- Backend function `createFreeLicense` (one-per-email guard)
-- Resend email with license key
-- Removes the "you need a credit card to try it" barrier
-
----
+`unitymbed signup <email>` → zero-payment 20 req/mo license + Resend email.
 
 ## `v0.1.9` — 2026-04-21  *N32G031 flash works* 🎉
-
-Landmark release — **first public OpenOCD flash driver for Nations N32G031**.
-- `unitymbed init` now fetches templates from `Unitymbed/templates` on GitHub (fixes broken `cp` path in compiled binary)
-- Custom TCL flash programmer writes directly to the N32G031 flash controller at `0x40022000` (unlock keys `0x45670123` / `0xCDEF89AB`), bypassing OpenOCD's `stm32f1x` driver which fails because Nations places DBGMCU at `0x1FFFF508` (not the STM32 convention at `0x40015800`)
-- End-to-end `init → build → flash` verified on real hardware — LED blink on PA8
-
----
+**First public OpenOCD flash driver for Nations N32G031.** Custom TCL programmer
+writes directly to the flash controller at `0x40022000` (unlock keys
+`0x45670123` / `0xCDEF89AB`), bypassing `stm32f1x` which fails on the Nations
+DBGMCU location at `0x1FFFF508`. End-to-end `init → build → flash` verified on
+real hardware.
 
 ## `v0.2.0` — 2026-04-21  *Production Ready*
-
-Promotion milestone. Everything stabilized and shippable.
-- N32G031 flash end-to-end re-verified on real hardware (LED blink)
-- AI system prompt now embeds a **full N32G031 register reference card** (memory map, clock tree, GPIO registers, USART1, Flash controller) so responses are grounded even without RAG
-- New datasheet repo: https://github.com/Unitymbed/datasheets
-- Template fix: correct APB2 clock bits for GPIO (N32G031 uses `APB2PCLKEN`, **not** AHB like STM32F1)
-- Stripe Live pipeline end-to-end verified with a real ฿249 transaction
-
----
+Full N32G031 register reference card embedded in system prompt. Datasheet repo
+published. Stripe Live pipeline end-to-end verified with a real ฿249
+transaction.
 
 ## `v0.2.1` — 2026-04-21  *Memory & Context*
-
-Conversations and project awareness, per-project.
-- Conversation history persisted to `.unitymbed/conversations/` — auto-loads last session when reopening the TUI
-- Automatic project context injection on every prompt: `src/*`, `unitymbed.json`, and `CONTEXT.md`
-- New `/new` command to start a fresh conversation
-
----
+`.unitymbed/conversations/` persists chat history per project. Auto-loads on
+reopen. Injects `src/*`, `unitymbed.json`, `CONTEXT.md`. `/new` command.
 
 ## `v0.2.2` — 2026-04-22  *Hardware Inspection*
+`/check` — AI picks MMIO registers, OpenOCD halts + reads, AI diagnoses
+mismatches (suggests only, never auto-edits). `/monitor` — auto-detects
+CMSIS-DAP VCP, opens 115,200-baud terminal.
 
-First tools that actually reach into the running chip.
-- `/check` — AI picks which MMIO registers matter for the current problem, OpenOCD halts + reads them, output is shown as a table
-- `/check` mismatches — AI analyses why expected ≠ observed and **suggests** a fix (never auto-edits code — user feedback)
-- `/monitor` — auto-detects the CMSIS-DAP virtual COM port and opens a 115,200-baud serial terminal
-
----
-
-## `v0.2.3` — 2026-04-22  *Auto-update notifier*
-
-Small but important release hygiene.
-- Background check against GitHub releases once every 24h
-- Non-intrusive hint in TUI header and after CLI commands when a newer version is available
-- New: `unitymbed --version`
-
----
+## `v0.2.3` — 2026-04-22  *Auto-update Notifier*
+24h GitHub poll, hint in header if new release available. `unitymbed --version`.
 
 ## `v0.2.4` — 2026-04-22  *Agent + Thai Input*
+- `unitymbed build debug` compiles with `-O0 -g3` for GDB
+- `unitymbed agent "<problem>"` — 4-step loop (build debug → flash → register
+  snapshot → AI diagnosis)
+- `/remember <fact>` persists to `CONTEXT.md`
+- Thai input: preview above box when Thai detected, hide cursor to avoid
+  combining-mark column misalignment
 
-Two unrelated wins landed together.
-- `unitymbed build debug` compiles with `-O0 -g3` so GDB single-step works
-- `unitymbed agent "<problem>"` — 4-step autonomous loop: build (debug) → flash → register snapshot → AI diagnosis
-- `/remember <fact>` — persists a lesson to the project's `CONTEXT.md`
-- Thai input in Ink TUI: show preview above the input box when Thai characters are detected, hide cursor to avoid combining-mark column misalignment
-
----
-
-## `v0.2.5` — 2026-04-22  *`/agent` inside the TUI*
-
-- The agent loop runs inline inside the TUI instead of spawning a raw console
-- Progress renders as typed tool-result messages
-- Graceful error surfaces when hardware is disconnected
-
----
+## `v0.2.5` — 2026-04-22  */agent inside TUI*
+Agent loop runs inline as tool-result messages.
 
 ## `v0.2.6` — 2026-04-22  *File Operations in TUI*
-
-Inspired by user request "ขอหน้าต่างให้ edit file และเรียกดูไฟล์ใน TUI ได้ไหม":
-- `/ls [dir]` — lists project files
-- `/view <path>` — shows file content with line numbers
-- `/edit <path>` — opens `$EDITOR` (nano by default) on the file
-
----
+`/ls [dir]`, `/view <path>`, `/edit <path>` (opens `$EDITOR`).
 
 ## `v0.2.7` — 2026-04-22  *Branded Identity*
-
-- AI always introduces itself as **"UnityMbed AI"**
-- Never mentions Google / Gemini / Anthropic / Claude / Ollama / OpenAI / ChatGPT / any other AI vendor or model name
-- Prevents branding leaks even when the backing model goes off-script
-- Identity rule embedded in the CLI's system prompt (later moved server-side in v0.3.0)
-
----
+AI introduces itself as "UnityMbed AI" — never mentions Google / Anthropic / etc.
 
 ## `v0.3.0` — 2026-04-22  *Unitymbed AI Cloud (no BYOK)*
-
-Major architectural shift. Cloud AI is proxied through UnityMbed's backend only — no more user-configured API keys.
-
-**Breaking changes:**
-- `ai.provider` accepts only `"ollama"` or `"cloud"`
-- `ai.apiKey` and `ai.keys.*` stripped from the config schema
-- Legacy `gemini` / `claude` provider values auto-migrate to `"cloud"` on first launch; any on-disk keys are scrubbed
-
-**Backend:**
-- New `aiProxy` Cloud Function — validates license + machine + quota via Firestore, calls Gemini with our `GEMINI_API_KEY` (Secret Manager), streams SSE back
-- **Identity rule hardened server-side** — prepended to every request before any client system prompt, so direct callers can't bypass it
-- Quota deducted only on successful generation
-
-**CLI:**
-- Dropped `@anthropic-ai/sdk` and `@google/generative-ai` dependencies
-- Removed `claude.ts`, `gemini.ts`, `quotaWrapper.ts`
-- New `UnityMbedCloudClient` that speaks to `aiProxy` over SSE
-- `config.migrate()` runs on every `loadConfig()` and persists cleaned config back to disk
-
-**Docs:** `Unitymbed/unitymbed` README + `docs/ai.md` + `docs/commands.md` + `docs/pricing.md` rewritten to drop BYOK and mark Cloud Pro (Claude) as reserved for a later phase.
-
----
+Cloud AI proxied through UnityMbed backend only. Users no longer configure
+API keys.
+- New `aiProxy` Cloud Function with SSE + license + machine + quota
+- Identity rule moved server-side so direct callers can't bypass
+- CLI removes `@anthropic-ai/sdk` + `@google/generative-ai`; adds
+  `UnityMbedCloudClient`
+- `config.migrate()` auto-strips legacy `keys.*` / `apiKey`, remaps
+  `gemini` / `claude` → `cloud`
+- Docs repo rewritten: no BYOK, no Cloud Pro mentions
 
 ## `v0.3.1` — 2026-04-23  *RAG Grounded Answers*
-
-Every Cloud query is now automatically grounded in a curated knowledge base. Zero user action required.
-
-**Backend:**
-- New `apps/functions/src/ai/rag.ts` — Gemini `gemini-embedding-001` embedding with 768-dim Matryoshka truncation, Firestore native vector search (`findNearest`, COSINE distance), graceful fail-open on any retrieval error (RAG must never break chat)
-- `aiProxy` extended with `mcu` / `useKB` / `topK` body fields. Retrieves top-5 chunks for the last user message, prepends a `GROUNDED REFERENCES` block after the identity rule and firmware reference card. Emits `data: {ragHits: N}` SSE frame before the first token.
-
-**Admin ingestion pipeline** (runs locally, `apps/functions/scripts/`):
-- `lib/pdf.ts` — server-side PDF text extraction via `pdfjs-dist` legacy build (no worker)
-- `lib/chunk.ts` — prose chunker (~1,400 chars with paragraph-aware breaks) + boundary-aware code chunker (C/H function definitions)
-- `lib/embed.ts` — concurrency-6 batched embedder with exponential backoff on 429/5xx
-- `ingest.ts` — CLI: `bun scripts/ingest.ts <path> --mcu n32g031 --type user_manual`
-
-**CLI:**
-- `UnityMbedCloudClient` reads `mcu` from the nearest `unitymbed.json` and sends it with every chat request
-- Renders **"📚 grounded with N refs"** when retrieval fires
-
-**KB seed at launch:**
-- N32G031 Datasheet (86 pages) → **148 chunks**
-- N32G031 User Manual (550 pages) → **958 chunks**
-- Nations N32G031 SDK firmware (.c/.h) → **1,235 chunks**
-- **Total: 2,341 chunks**, all scoped by MCU tag
-
-**Firestore vector index:** `kb_chunks` collection group, composite `(mcu ASC, embedding VECTOR 768 flat)`, COSINE distance.
-
----
+Every Cloud query grounds in a curated knowledge base.
+- `ai/rag.ts` — Gemini `gemini-embedding-001` @ 768-dim Matryoshka truncation,
+  Firestore native `findNearest` (COSINE), fail-open on error
+- `aiProxy` accepts `mcu` / `useKB` / `topK`, retrieves top-5 chunks, prepends
+  as GROUNDED REFERENCES block, emits `ragHits` SSE frame
+- Local ingestion tool at `apps/functions/scripts/ingest.ts` with PDF + code
+  chunkers (pdfjs-dist legacy build, no worker; C/H boundary-aware)
+- **KB at launch** (N32G031): datasheet 148 + UM 958 + Nations SDK 1,235 =
+  **2,341 chunks**
 
 ## `v0.3.2` — 2026-04-23  *Hotfix: Cloud default for fresh installs*
+`DEFAULT_CONFIG.ai.provider` flipped from `ollama` → `cloud`. `activate`
+auto-switches stale configs. Router prefers Cloud when license is present.
+Header shows `license.email`.
 
-Discovered when a second user (`por@voltamine-ai.com`) tried v0.3.1:
+## `v0.3.3` — 2026-04-23  *Register-name safety + thinking off*
+Users reported AI sometimes returned cut-off responses or STM32-style register
+names. Three fixes:
+- **Disable Gemini 2.5 thinking mode** (`thinkingConfig: { thinkingBudget: 0 }`) —
+  thinking tokens were silently eating the output budget
+- Raise default `maxOutputTokens` 4096 → 8192
+- **REGISTER-NAME SANITY** section in the system prompt mapping common
+  mistakes: `MODER→PMODE`, `OTYPER→POTYPE`, `OSPEEDR→SR`, `PUPDR→PUPD`,
+  `IDR→PID`, `ODR→POD`, `BSRR→PBSC`
+- Explicit "DO NOT regenerate `n32g031.h`" guard in the system prompt — the
+  template header is correct; AI was wastefully rewriting it
+- RAG output formatter marks `code_example` chunks as "reference only" so AI
+  reads the Nations SDK for offsets but doesn't emit HAL calls
+
+## `v0.3.4` — 2026-04-23  *Unified usage/credits + volume packs*
+`unitymbed usage` and `unitymbed credits list` were showing incompatible info
+(usage said "200/200" while credits list reported 107 available).
+- `usage` shows credits column whenever credits > 0, with next-step guidance
+  when exhausted
+- `credits list` adds a unified account summary + pack table with per-request
+  price and % off vs baseline
+- New packs: `cloud_500` (20% off), `cloud_2000` (40% off), `cloud_10000`
+  (60% off)
+
+## `v0.3.5` — 2026-04-23  *Clearer "drawing from credits" footer*
+Footer said "⚠ 0 Cloud AI requests left" even when pack credits were
+available. Now distinguishes three cases:
+- Monthly cap reached + credits available → informational "drawing from pack
+  credits"
+- Cap + zero credits → blocking warning with concrete next steps
+- Near-cap (≤5 left) → unchanged gentle heads-up
+
+## `v0.4.0` — 2026-04-23  *Token-based billing + admin pricing console*
+Replaced "1 request = 1 credit" with **"1 credit = 1,000 tokens"** (input +
+output combined). Fair pricing: small questions cost 0.5 credit, full code
+generation 5–20 credits.
+
+**Backend:**
+- `billing/config.ts` — new Firestore singleton `billing/config` with tier
+  quotas, pack catalog, upstream cost assumptions (Gemini $/M), USD→THB rate.
+  60-second in-memory cache.
+- `aiProxy` — captures Gemini's `usageMetadata.promptTokenCount` +
+  `candidatesTokenCount`, computes `credits_used = (in + out) / tokens_per_credit`,
+  deducts from monthly first then overflow to pack. Rich `done` frame with
+  `tokens`, `credits`, `monthly`, `pack`.
+- `getUsage` returns `{monthly, pack, tokens, requests}` (+ legacy block for
+  older CLIs).
+- `adminConfig.ts` — `configGet` / `configSet` / `configStats` Cloud
+  Functions, admin-gated.
+- `migrate-v04.ts` script — seeds `billing/config` with defaults, resets
+  in-flight per-period usage docs, archives legacy counters under `_legacy`,
+  carries over pack credits.
+
+**Defaults:**
+| Tier | Monthly credits | Monthly price |
+|---|---|---|
+| Free     |    200 | ฿0 |
+| Start    |  2,000 | ฿249 |
+| Pro      | 10,000 | ฿499 |
+| Advance  | 50,000 | ฿1,200 |
+
+| Pack       | Credits | Price  | ฿/credit | Discount |
+|------------|---------|--------|----------|----------|
+| cloud_1k   |  1,000  | ฿249   | 0.249    | — |
+| cloud_5k   |  5,000  | ฿999   | 0.200    | 20% |
+| cloud_20k  | 20,000  | ฿2,999 | 0.150    | 40% |
+| cloud_100k |100,000  | ฿9,999 | 0.100    | 60% |
+
+**CLI:**
+- Per-response footer: `📊 4.55 credits  (4,550 in + 4 out = 4.6k tokens)`
+- `usage` shows monthly credits, pack credits, token breakdown, guidance
+- `credits list` shows per-credit price and % off
+
+**Admin GUI:**
+- New `/billing` page — edit tiers, packs, upstream costs, USD→THB rate live
+- Live margin calculation per pack + tier worst-case cost
+- Stats card: tokens this month, upstream cost, revenue proxy
+
+## `v0.5.0` — 2026-04-24  *Coding Agent TUI*
+Major TUI upgrade: firmware-focused coding agent with plan/apply/undo and
+session state that survives restarts.
+
+**Session state** (per-project `.unitymbed/session.json`):
+- `goal`, `plan[]`, `files[]`, `schemas[]`, `diagrams[]`, `tokens`, `credits`, `messageCount`
+
+**AI output format** (parsed server-side):
+- `<unitymbed:plan>` list of tasks
+- `<unitymbed:task-start/>` and `<unitymbed:task-done/>`
+- `<unitymbed:file path="…">` full file content (queued, not auto-written)
+- `<unitymbed:schema name="…">` struct definitions
+- `<unitymbed:diagram title="…">` ASCII wiring / flow
+
+**New slash commands:**
+- `/plan <goal>` — AI breaks goal into numbered tasks
+- `/continue` — pick next pending task
+- `/apply` — write ALL queued file edits
+- `/discard` — drop pending edits
+- `/done <id>` — mark task done manually
+- `/status` — print current session
+- `/reset` — clear session
+- `/panel` — toggle side-panel visibility
+
+**Right-side panel** (visible when terminal ≥100 cols):
+- 📋 Todo with progress icons
+- 📁 Pending + applied file changes (colour-coded)
+- 📐 Schemas · 🔀 Diagrams
+- ⏱ elapsed · 💳 credits used · 📍 project & MCU
+
+File edits no longer auto-write when AI uses structured blocks — they queue as
+pending so you can review, then `/apply` in batch. Plain markdown code blocks
+still auto-write for backward compat.
+
+## `v0.5.1` — 2026-04-24  *Hotfix: parser drops queued files*
+Symptoms from a user report:
 ```
-unitymbed signup por@voltamine-ai.com       # OK
-unitymbed activate UM-FREE-…                # OK
-unitymbed                                    # → "AI error: AI provider 'ollama' is not available"
+→ structured changes queued — type /apply to write or /discard to drop
+❯ /apply
+→ no pending changes
 ```
+Two bugs:
+1. `parseAiOutput` regex required both opening and closing `</unitymbed:file>`
+   tags. Gemini sometimes truncated mid-stream or wrote attributes in a
+   different order → parser missed the block while the "queued" message still
+   fired from a naive substring test.
+2. Session credits didn't advance because the stream-end event didn't carry
+   `usageMetadata`.
 
-Root cause: `DEFAULT_CONFIG.ai.provider` was still `"ollama"` (legacy). After activation the config didn't switch to `"cloud"`, and the user had no Ollama installed.
+Fixes:
+- Rewrote extractor to scan for open tag, accept any attribute order, recover
+  content up to the next `<unitymbed:` tag or EOF when the closing tag is
+  missing.
+- Dispatcher now prints the actual list of queued files for sanity.
+- Ingestor scrapes the `📊 X credits (N in + M out)` footer line to track
+  tokens reliably.
 
-**Fixes:**
-- `DEFAULT_CONFIG.ai.provider` flipped from `ollama` → `cloud`
-- `unitymbed activate` auto-switches an `ollama`-defaulted config to `cloud` and normalizes the model field
-- `createProvider()` router prefers Cloud whenever a license is present (belt-and-suspenders for users upgrading with a stale on-disk config)
-- `Header` shows `license.email` instead of `anonymous` once activated
+## `v0.5.3` — 2026-04-24  *Panel cleanup + project guards*
+(v0.5.2 was cut internally but rolled into v0.5.3 before publishing.)
 
-Airgap mode is unchanged — users who explicitly want local Ollama still set `provider: ollama` + `cloudAllowed: false`.
+User feedback: right-side panel was rendering a vertical border line all the
+way down the terminal height; credit-to-฿ conversion wasn't wanted.
+
+Plus bugs when running the TUI outside a project:
+- `/apply` said "no pending changes" even when AI had queued files
+- `/fix` crashed with `null is not an object (project.root)`
+- Header silently showed `project=undefined`
+
+Fixes:
+- Session panel: dropped borders, uses padding instead; no more ฿ in the
+  footer
+- `/apply`: distinct message when pending exists but no project, with clear
+  instruction to `cd` or `unitymbed init`
+- `/fix`: explicit project guard
+- Header: yellow `⚠ no project (cd into unitymbed.json)` when cwd has no
+  `unitymbed.json`
+- SessionPanel empty-state shows copy-paste `unitymbed init` commands
+
+## `v0.5.4` — 2026-04-24  */undo /history /restore*
+Every `/apply` now creates a timestamped backup under
+`.unitymbed/backups/<epoch>/` before overwriting. Three new commands:
+
+| Command | What it does |
+|---|---|
+| `/undo` | revert the most recent `/apply` |
+| `/history` | list backups (newest first) with timestamps |
+| `/restore <id>` | revert all the way back to a specific backup |
+
+Implementation:
+- `SessionState` gains a `backups[]` array persisted to `session.json`
+- For each file in an `/apply` batch, we copy the original (if it existed)
+  to the backup directory. Created files get `backupPath: null` and are
+  deleted on undo.
+- Restored files come back to the pending queue so you can tweak and
+  re-apply.
+- Graceful migration for sessions saved under v0.5.3 (empty `backups`).
 
 ---
 
 # Beyond the CLI — companion deliverables this cycle
 
-## Admin Web GUI  — `unitymbed-admin.web.app`
-Shipped alongside v0.3.1. Full React + Vite + TailwindCSS SPA.
+## Admin Web GUI — `unitymbed-admin.web.app`
+React + Vite + TailwindCSS + shadcn primitives. Six pages:
+- **Documents** (/docs) — list, filter by MCU, delete (cascades chunks)
+- **Upload** (/upload) — drop PDF → signed Storage URL → `kbProcess` ingests
+- **Test Query** (/test) — debug RAG retrieval
+- **Billing** (/billing) — edit tiers, packs, upstream costs live
+- **Admins** (/admins) — add / remove admin emails
+- **Welcome** (/welcome) — **public**, post-Payment-Link polling UI
 
-- **Auth:** Firebase Google sign-in; allowlist stored in Firestore `admins/{email}`. Non-admins see "Not authorized".
-- **Pages:**
-  - **Documents** — list/filter by MCU, show chunk counts, delete (cascades to all chunks in batched writes)
-  - **Upload** — drag-drop PDF, reserves a `kb_docs` doc ID, receives a signed Storage URL, uploads directly to bucket; `kbProcess` Storage trigger handles the rest
-  - **Test Query** — embed a test question, see top-K hits with source file, page, and raw text (debug tool for KB coverage)
-  - **Admins** — add/remove admin emails (cannot remove yourself)
-- **8 new Cloud Functions** back the GUI: `adminList` / `adminAdd` / `adminRemove` / `kbList` / `kbDelete` / `kbTestQuery` / `kbUploadUrl` / `kbProcess` (Storage trigger, `asia-southeast1`)
+Auth: Firebase Google sign-in + allowlist in Firestore `admins/{email}`.
+Welcome route bypasses auth (customers don't have accounts yet).
 
-## Custom domain authorization
-Added `unitymbed-admin.web.app` + `unitymbed-admin.firebaseapp.com` to the Firebase Auth authorized-domains list via Identity Toolkit REST API.
+## Stripe Payment Links (Live)
+Three direct-pay URLs so customers can subscribe without the CLI:
+
+| Plan | Monthly | Link |
+|---|---|---|
+| Start   | ฿249   | `buy.stripe.com/cNi14gf5Ebn93tE2vOew801` |
+| Pro     | ฿499   | `buy.stripe.com/6oU9AM5v43UH9S29Ygew802` |
+| Advance | ฿1,200 | `buy.stripe.com/9B614gaPo3UH5BM1rKew803` |
+
+Payment success URL points to `/welcome?session={CHECKOUT_SESSION_ID}`. The
+welcome page polls `onboardStatus` every 2.5s until the Stripe webhook
+provisions the license, then shows the key + a one-line install command:
+```
+brew tap Unitymbed/tap && brew install unitymbed && unitymbed activate UM-START-...
+```
+Zero manual activation; click the copy button and paste into Terminal.
+
+## KB expansion (N32G452 + N32G455)
+Added the entire **Nations N32G45x Motor Kit firmware** (Std Periph Driver +
+FOC + Motor App) as code_example chunks, plus all 5 Motor Kit User Guide PDFs
+as app_notes. Double-tagged under both `n32g452` and `n32g455` since they
+share a family SDK.
+
+| MCU | Docs | Chunks |
+|---|---|---|
+| N32G031 | 3  | 2,341 (DS + UM + SDK) |
+| N32G452 | 6  | 2,343 (SDK + 5 UG PDFs) |
+| N32G455 | 6  | 2,343 (SDK + 5 UG PDFs) |
+| **Total** | **15** | **7,027** |
+
+Datasheets and Reference Manuals for N32G452/G455 still pending — once
+uploaded they'll close the register-level gap for those families.
 
 ## Documentation repo — `Unitymbed/unitymbed`
-- Rewritten for Phase-A architecture (no BYOK, two AI tiers: Local + Cloud)
-- All mentions of `keys.gemini` / `keys.claude` and Cloud Pro (Claude) removed
-- `docs/ai.md` completely rewritten with the new model
+- README rewritten for token-based pricing + Payment Links
+- REVISION.md (this file) chronicles every release
+- `docs/pricing.md`, `docs/ai.md`, `docs/commands.md` kept in sync
 
 ---
 
@@ -354,12 +435,14 @@ Added `unitymbed-admin.web.app` + `unitymbed-admin.firebaseapp.com` to the Fireb
 | Subsystem | ⭐ | Notes |
 |---|---|---|
 | **Custom OpenOCD N32G031 flash driver** | ⭐⭐⭐⭐⭐ | Reverse-engineered Nations flash controller from vendor SDK; custom TCL unlock sequence; first-of-its-kind in the public ecosystem |
-| **Stripe → license → email pipeline** | ⭐⭐⭐⭐ | 4 webhook event types × 3 tiers × email delivery × credit metadata branching × signature verification |
-| **RAG retrieval inside the same SSE request** | ⭐⭐⭐⭐ | Embed query → Firestore vector `findNearest` → context assembly → fail-open on error, all *inside* the generation round-trip |
-| **Admin GUI with Firebase Auth + allowlist** | ⭐⭐⭐ | ID-token verification → Firestore admin check → CORS allowlist per endpoint → signed-URL upload path → Storage trigger chain |
-| **Ingestion pipeline** | ⭐⭐⭐ | pdfjs-dist legacy build (no worker), regex-based function-boundary code chunker, concurrent embedding with backoff |
-| **Config migration (BYOK → managed)** | ⭐⭐⭐ | Auto-strips on-disk keys, remaps legacy provider names, persists only on actual change |
-| **Thai input rendering in Ink TUI** | ⭐⭐ | Thai combining marks misalign terminal columns — preview-above-input + cursor-hidden fixes it |
+| **Token-based billing with live admin edit** | ⭐⭐⭐⭐⭐ | Real-time Gemini `usageMetadata` → credit deduction → monthly/pack cascade; admin GUI edits pricing with 60s cache invalidation; margin calculator is live in the UI |
+| **Stripe → license → email pipeline** | ⭐⭐⭐⭐ | 4 webhook event types × 3 tiers × email delivery × credit metadata branching × signature verification × Payment Link success-URL post-pay onboarding |
+| **RAG retrieval inline inside the SSE request** | ⭐⭐⭐⭐ | Embed query → Firestore vector `findNearest` → context assembly → fail-open, all inside the generation round-trip without adding latency |
+| **Coding Agent TUI** | ⭐⭐⭐⭐ | Structured-block parser with permissive fallback for partial streams, session persistence, pending-queue UX, backup/undo/restore, layout math that collapses under narrow terminals |
+| **Admin GUI with Firebase Auth + allowlist** | ⭐⭐⭐ | ID-token verification → Firestore admin check → CORS allowlist → signed-URL upload → Storage trigger chain |
+| **Ingestion pipeline** | ⭐⭐⭐ | pdfjs-dist legacy build (no worker), regex-based C/H function-boundary chunker, concurrent embedding with backoff |
+| **Config migration (BYOK → managed; per-request → token)** | ⭐⭐⭐ | On-disk config rewrite + server-side usage doc rewrite with legacy archival |
+| **Thai input rendering** | ⭐⭐ | Combining marks misalign terminal columns — preview-above-input + cursor-hidden fixes it |
 | **Cross-platform binary build** | ⭐⭐ | `bun build --compile --target=bun-{mac-arm64,mac-x64,linux-x64,windows-x64}` |
 
 ---
@@ -368,16 +451,16 @@ Added `unitymbed-admin.web.app` + `unitymbed-admin.firebaseapp.com` to the Fireb
 
 | Service | Usage |
 |---|---|
-| **Stripe (Live)** | Subscriptions — Start ฿249, Pro ฿499, Advance ฿1,200 — plus credit-pack Checkouts |
-| **Resend** | Transactional email (license, renewal, credit receipt); currently `onboarding@resend.dev`, pending DNS verification for `noreply@unitymbed.com` |
-| **Firebase Auth** | Admin Google sign-in + ID-token verification on backend |
-| **Firestore** | 5 top-level collections — `licenses`, `customers`, `admins`, `kb_docs`, `kb_chunks`; vector index on `kb_chunks.embedding` |
+| **Stripe (Live)** | 3 subscription products (Start/Pro/Advance), 3 Payment Links, dynamic `price_data` for credit packs |
+| **Resend** | Transactional email (license issued, renewal, credit receipt). Still on `onboarding@resend.dev` pending DNS verify for `noreply@unitymbed.com` |
+| **Firebase Auth** | Admin Google sign-in + server-side ID-token verification |
+| **Firestore** | 6 top-level collections — `licenses`, `customers`, `admins`, `kb_docs`, `kb_chunks`, `billing/config` (singleton). Vector index on `kb_chunks.embedding`. Composite index on `licenses(email, createdAt)`. |
 | **Firebase Storage** | `kb/{docId}/` admin uploads (signed-URL write, Functions-only read) |
 | **GCP Secret Manager** | `GEMINI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY` |
-| **Gemini API** | `gemini-2.5-flash` for generation, `gemini-embedding-001` for 768-dim embeddings |
+| **Gemini API** | `gemini-2.5-flash` for generation (thinking disabled), `gemini-embedding-001` @ 768-dim Matryoshka for embeddings |
 | **GCP Service Accounts** | `kb-ingest@…` for local admin ingestion (Firestore write + Firebase Admin role) |
 | **Homebrew tap** | `Unitymbed/homebrew-tap` — formula auto-updated each release |
-| **GitHub Releases** | 21 tagged releases with pre-built binaries (macOS arm64/x64, Linux x64, Windows x64) |
+| **GitHub Releases** | 27 tagged releases with pre-built binaries (macOS arm64/x64, Linux x64, Windows x64) |
 
 ---
 
@@ -386,7 +469,11 @@ Added `unitymbed-admin.web.app` + `unitymbed-admin.firebaseapp.com` to the Fireb
 | Resource | URL |
 |---|---|
 | AI Cloud proxy | `https://us-central1-enterpriseunitymbed.cloudfunctions.net/aiProxy` |
+| Post-payment welcome | `https://unitymbed-admin.web.app/welcome?session=…` |
 | Admin web app | `https://unitymbed-admin.web.app` |
+| Payment Link — Start | `https://buy.stripe.com/cNi14gf5Ebn93tE2vOew801` |
+| Payment Link — Pro | `https://buy.stripe.com/6oU9AM5v43UH9S29Ygew802` |
+| Payment Link — Advance | `https://buy.stripe.com/9B614gaPo3UH5BM1rKew803` |
 | Main docs repo | `https://github.com/Unitymbed/unitymbed` |
 | Homebrew tap | `https://github.com/Unitymbed/homebrew-tap` |
 | Templates | `https://github.com/Unitymbed/templates` |
@@ -397,13 +484,25 @@ Added `unitymbed-admin.web.app` + `unitymbed-admin.firebaseapp.com` to the Fireb
 
 # Open items
 
-- **Gemini key rotation** — the key used in Secret Manager was shared via chat during setup; recommended to rotate at https://aistudio.google.com/app/apikey → update Secret Manager → redeploy `aiProxy` / `kbProcess`
-- **Resend DNS verification** — switch sender from `onboarding@resend.dev` to `noreply@unitymbed.com`
-- **Model routing by tier** — currently all tiers get `gemini-2.5-flash`; design pending (tier-based, user-toggled, or smart auto-select)
-- **Cloud Pro tier (Claude)** — reserved for a later phase; backend structured so enabling it is a config-only change (`CLOUD_PRO_ENABLED = true` + Anthropic secret)
-- **Additional MCU KBs** — N32G452 and N32G455 datasheets / manuals to ingest (Admin Web GUI is ready to accept them)
-- **Custom domain** — point `admin.unitymbed.com` at Firebase Hosting once DNS is set
-- **Landing page** at `unitymbed.com` — critical blocker for public launch
+- **N32G452 + N32G455 datasheets and Reference Manuals** — SDK + UG ingested, but
+  chip-level register-by-register spec PDFs still needed for fully-grounded
+  bare-metal generation on those parts
+- **Gemini key rotation** — the Gemini API key used in Secret Manager was
+  shared via chat during setup; rotate at https://aistudio.google.com/app/apikey
+  → update Secret Manager → redeploy `aiProxy` / `kbProcess`
+- **Resend DNS verification** — switch sender from `onboarding@resend.dev` to
+  `noreply@unitymbed.com`
+- **Email template with welcome URL** — include `unitymbed-admin.web.app/welcome`
+  link in the license email so users who miss the Stripe redirect can still
+  land on the onboarding page
+- **API Keys for UnityMbed apps** — design exists (Firestore `api_keys`,
+  `X-UnityMbed-Key` header on aiProxy, admin GUI page); not yet implemented.
+  Reserved for the next sprint.
+- **Landing page** at `unitymbed.com` — still the main launch blocker
+- **Custom domain** — point `admin.unitymbed.com` at Firebase Hosting when DNS
+  is configured
+- **Cloud Pro tier (Claude)** — reserved for a later phase; backend structured
+  so enabling it is a config-only change
 
 ---
 
